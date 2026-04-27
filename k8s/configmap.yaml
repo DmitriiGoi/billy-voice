@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: billy-voice-config
+  namespace: agent-sandbox
+data:
+  WHISPER_MODEL: "small"
+  WHISPER_LANGUAGE: "ru"
+  OPENCLAW_SESSION_KEY: "billy-voice"
+  KOKORO_URL: "http://kokoro-tts.agent-sandbox.svc.cluster.local:8880"
+  KOKORO_VOICE: "af_heart"
+  SILENCE_THRESHOLD: "300"
+  SILENCE_DURATION: "1.5"
