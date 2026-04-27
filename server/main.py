@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import subprocess
 import numpy as np
 import io
 import wave
@@ -55,95 +56,34 @@ def transcribe_sync(audio_bytes: bytes) -> str:
     return " ".join(s.text.strip() for s in segments).strip()
 
 
-OPENCLAW_GATEWAY_URL = os.getenv("OPENCLAW_GATEWAY_URL", "http://10.43.4.151:18789")
+OPENCLAW_GATEWAY_URL = os.getenv("OPENCLAW_GATEWAY_URL", "http://openclaw.personal-agent.svc.cluster.local:18789")
 OPENCLAW_GATEWAY_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", "")
 
 
 def ask_billy_sync(text: str) -> str:
-    """Send text to OpenClaw via WebSocket protocol, return reply text."""
-    import websocket
-    import threading
-
-    ws_url = OPENCLAW_GATEWAY_URL.replace("http://", "ws://").replace("https://", "wss://")
-    token = OPENCLAW_GATEWAY_TOKEN
-    session_key = OPENCLAW_SESSION_KEY
-
-    reply_text = [None]
-    error_text = [None]
-    done = threading.Event()
-    connect_nonce = [None]
-    req_id = ["req-1"]
-
-    def on_message(ws, message):
-        try:
-            msg = json_lib.loads(message)
-            evt = msg.get("event") or msg.get("type")
-
-            if evt == "connect.challenge":
-                nonce = msg["payload"]["nonce"]
-                connect_nonce[0] = nonce
-                # Auth with token
-                ws.send(json_lib.dumps({
-                    "type": "method",
-                    "method": "connect",
-                    "id": "auth-1",
-                    "payload": {
-                        "auth": {"token": token},
-                        "role": "operator",
-                        "scopes": ["agent:run"],
-                        "nonce": nonce,
-                    }
-                }))
-
-            elif msg.get("id") == "auth-1" and msg.get("type") == "response":
-                # Auth OK — send message
-                ws.send(json_lib.dumps({
-                    "type": "method",
-                    "method": "agent.run",
-                    "id": req_id[0],
-                    "payload": {
-                        "sessionKey": session_key,
-                        "message": text,
-                    }
-                }))
-
-            elif msg.get("id") == req_id[0] and msg.get("type") == "response":
-                result = msg.get("payload") or {}
-                reply_text[0] = result.get("reply") or result.get("text") or result.get("message") or str(result)
-                done.set()
-                ws.close()
-
-            elif msg.get("type") == "error" or (msg.get("type") == "response" and msg.get("error")):
-                error_text[0] = str(msg.get("error") or msg)
-                done.set()
-                ws.close()
-
-        except Exception as e:
-            log.error(f"ws parse error: {e}")
-
-    def on_error(ws, error):
-        error_text[0] = str(error)
-        done.set()
-
-    def on_close(ws, *args):
-        done.set()
-
-    ws = websocket.WebSocketApp(
-        ws_url,
-        header={"Authorization": f"Bearer {token}"},
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close,
+    """Send text to OpenClaw via CLI, return reply text."""
+    result = subprocess.run(
+        ["openclaw", "agent",
+         "--session-id", OPENCLAW_SESSION_KEY,
+         "--message", text,
+         "--json"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env={
+            **os.environ,
+            "OPENCLAW_STATE_DIR": "/data/.openclaw",
+            "HOME": "/root",
+        }
     )
-    t = threading.Thread(target=ws.run_forever)
-    t.daemon = True
-    t.start()
-    done.wait(timeout=60)
-
-    if error_text[0]:
-        log.error(f"openclaw ws error: {error_text[0]}")
+    if result.returncode != 0:
+        log.error(f"openclaw agent failed: {result.stderr[:300]}")
         return "Чёт я завис, бро. Попробуй ещё раз."
-    return reply_text[0] or "Пустой ответ от Билли."
+    try:
+        data = json_lib.loads(result.stdout)
+        return data.get("reply") or data.get("text") or data.get("message") or result.stdout.strip()
+    except Exception:
+        return result.stdout.strip() or "Пустой ответ от Билли."
 
 
 def stream_tts(text: str):

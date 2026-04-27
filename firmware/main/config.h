@@ -6,7 +6,7 @@
 
 // ── Billy Voice Server ────────────────────────────────────────────────────
 // NodePort 30880, хост-нода кластера
-#define SERVER_HOST      "192.168.1.100"   // ← IP хост-ноды k8s
+#define SERVER_HOST      "192.168.178.33"
 #define SERVER_PORT      30880
 #define SERVER_URL       "http://" SERVER_HOST ":" "30880" "/voice"
 

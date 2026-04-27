@@ -5,4 +5,3 @@ faster-whisper
 numpy
 python-dotenv
 python-multipart
-websocket-client

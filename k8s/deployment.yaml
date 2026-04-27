@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: billy-voice
-          image: billy-voice:latest
-          imagePullPolicy: Never
+          image: goydmitriy/billy-voice:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           resources:
@@ -36,6 +36,9 @@ spec:
           volumeMounts:
             - name: whisper-cache
               mountPath: /root/.cache/huggingface
+            - name: openclaw-data
+              mountPath: /data/.openclaw
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health
@@ -52,3 +55,7 @@ spec:
         - name: whisper-cache
           persistentVolumeClaim:
             claimName: whisper-cache
+        - name: openclaw-data
+          hostPath:
+            path: /data/.openclaw
+            type: Directory
