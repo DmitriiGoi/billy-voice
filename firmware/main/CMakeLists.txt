@@ -1,0 +1,21 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "audio.c"
+        "wake_word.c"
+        "http_voice.c"
+        "display.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        esp_wifi
+        esp_http_client
+        esp_http_server
+        nvs_flash
+        driver
+        esp_codec_dev
+        esp_audio_codec
+        fatfs
+        spiffs
+        lcd_touch
+        esp_lcd
+)
