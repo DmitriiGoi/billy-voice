@@ -4,3 +4,4 @@ websockets
 faster-whisper
 numpy
 python-dotenv
+python-multipart
